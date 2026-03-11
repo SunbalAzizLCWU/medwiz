@@ -1,7 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { TopBar } from "@/components/layout/TopBar";
 
 export const metadata: Metadata = {
   title: "Dashboard | AuraNode",
@@ -19,37 +20,13 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
-
   return (
-    <div className="min-h-screen bg-surface flex">
-      <aside className="w-60 bg-white border-r border-surface-border flex flex-col shrink-0">
-        <div className="p-5 border-b border-surface-border">
-          <p className="text-lg font-bold text-brand-900">AuraNode</p>
-          <p className="text-xs text-slate-500 mt-0.5">Clinic Dashboard</p>
-        </div>
-        <nav className="flex-1 p-3 space-y-1">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 font-medium transition-colors"
-          >
-            Overview
-          </Link>
-        </nav>
-        <div className="p-4 border-t border-surface-border">
-          <p className="text-sm font-medium text-slate-800 truncate">
-            {profile?.full_name ?? user.email}
-          </p>
-          <p className="text-xs text-slate-500 capitalize mt-0.5">
-            {profile?.role?.replace(/_/g, " ") ?? "Staff"}
-          </p>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-auto">{children}</main>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <main className="flex-1 overflow-auto bg-surface flex flex-col">
+        <TopBar title="Dashboard" />
+        <div className="flex-1 overflow-auto">{children}</div>
+      </main>
     </div>
   );
 }

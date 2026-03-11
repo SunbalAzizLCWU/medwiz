@@ -69,6 +69,8 @@ export interface Report {
   id: string;
   org_id: string;
   patient_id: string;
+  patient_name: string;
+  patient_phone: string;
   upload_type: UploadType;
   file_url: string;
   signed_url_token: string;
@@ -76,6 +78,7 @@ export interface Report {
   doctor_notes: string | null;
   status: ReportStatus;
   doctor_id: string | null;
+  doctor?: Pick<User, "full_name" | "pmdc_number">;
   version: number;
   created_at: string;
   reviewed_at: string | null;
