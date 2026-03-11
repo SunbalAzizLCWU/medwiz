@@ -20,6 +20,10 @@ interface Props {
 
 const columnHelper = createColumnHelper<Report>();
 
+function getPatientName(report: Report): string {
+  return report.patient_name || report.patient?.name || "Unknown";
+}
+
 function SkeletonRow() {
   return (
     <tr className="animate-pulse">
@@ -45,7 +49,7 @@ function MobileCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-slate-800">
-            {report.patient_name || report.patient?.name || "Unknown"}
+            {getPatientName(report)}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">
             ****{(report.patient_phone || "").slice(-4)}
@@ -112,8 +116,7 @@ export function ReportTable({ reports, isLoading, onViewReport }: Props) {
       header: "Patient",
       cell: (info) => {
         const report = info.row.original;
-        const name =
-          report.patient_name || report.patient?.name || "Unknown";
+        const name = getPatientName(report);
         const phone = report.patient_phone || "";
         return (
           <div>

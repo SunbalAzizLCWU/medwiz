@@ -89,6 +89,7 @@ export default function UploadPage() {
     if (!patientName.trim()) {
       errors.patientName = "Patient name is required";
     }
+// Pakistani phone format: 03XXXXXXXXX (11 digits starting with 03)
     const phoneRegex = /^03\d{9}$/;
     if (!patientPhone.trim()) {
       errors.patientPhone = "Phone number is required";

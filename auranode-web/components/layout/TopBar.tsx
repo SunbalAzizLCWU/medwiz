@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Bell, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,10 +15,10 @@ export function TopBar({ title }: Props) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    const supabase = createClient();
     const { data } = await supabase
       .from("notifications")
       .select("*")
@@ -27,7 +27,7 @@ export function TopBar({ title }: Props) {
       .order("created_at", { ascending: false })
       .limit(20);
     if (data) setNotifications(data as Notification[]);
-  }, [user]);
+  }, [user, supabase]);
 
   useEffect(() => {
     fetchNotifications();
@@ -35,7 +35,6 @@ export function TopBar({ title }: Props) {
 
   const markAllRead = async () => {
     if (!user || notifications.length === 0) return;
-    const supabase = createClient();
     await supabase
       .from("notifications")
       .update({ is_read: true })
