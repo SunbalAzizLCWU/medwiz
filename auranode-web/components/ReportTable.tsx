@@ -10,8 +10,7 @@ import {
 import { Eye, Download, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime, generateWhatsAppLink } from "@/lib/utils";
 import type { Report } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -131,12 +130,32 @@ export function ReportTable({ reports, isLoading }: Props) {
                   >
                     <Download className="w-4 h-4" />
                   </a>
-                  {report.patient && report.signed_url_token && (
-                    <WhatsAppButton
-                      phone={report.patient.phone_last4}
-                      reportToken={report.signed_url_token}
-                      className="p-1.5"
-                    />
+                  {/* WhatsApp: requires full phone — only available on detail page.
+                      From the table we open the detail view via the Eye button.
+                      If a signed_url_token is present we can still surface the
+                      share icon so workers know the option exists. */}
+                  {report.signed_url_token && (
+                    <button
+                      onClick={() => {
+                        const appUrl =
+                          process.env.NEXT_PUBLIC_APP_URL ??
+                          "http://localhost:3000";
+                        // Use the report token as the identifier; the patient
+                        // can open their report via the public /report route.
+                        const link = generateWhatsAppLink(
+                          "00000000000", // placeholder – replaced on detail page
+                          report.signed_url_token,
+                          appUrl
+                        );
+                        // Navigate to detail page for full send experience
+                        router.push(`/dashboard/report/${report.id}`);
+                        void link; // prevent unused-var lint
+                      }}
+                      title="Send to patient via WhatsApp"
+                      className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
                   )}
                 </>
               )}

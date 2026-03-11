@@ -62,10 +62,11 @@ function StatCard({
 export default function DashboardPage() {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
+  const orgId = user?.org_id ?? "";
 
   const { data: stats, isLoading: statsLoading } = useSWR(
-    user?.org_id ? `stats-${user.org_id}` : null,
-    () => fetchDashboardStats(user!.org_id)
+    orgId ? `stats-${orgId}` : null,
+    () => fetchDashboardStats(orgId)
   );
 
   const { reports, isLoading: reportsLoading, mutate } = useReports(

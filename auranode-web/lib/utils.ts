@@ -23,7 +23,14 @@ export function generateWhatsAppLink(
   const message = encodeURIComponent(
     `Your AuraNode medical report is ready. View it here: ${appUrl}/report/${reportToken}`
   );
-  return `https://wa.me/92${phone.slice(1)}?text=${message}`;
+  // Accepts Pakistani local format (03XXXXXXXXX) or international (923XXXXXXXXX/+923XXXXXXXXX)
+  let intlPhone = phone.replace(/\s+/g, "");
+  if (intlPhone.startsWith("+")) {
+    intlPhone = intlPhone.slice(1);
+  } else if (intlPhone.startsWith("0")) {
+    intlPhone = `92${intlPhone.slice(1)}`;
+  }
+  return `https://wa.me/${intlPhone}?text=${message}`;
 }
 
 export function maskPhone(phone: string): string {

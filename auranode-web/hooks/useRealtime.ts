@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase";
 
 export function useReportRealtime(orgId: string, onUpdate: () => void) {
   const onUpdateRef = useRef(onUpdate);
-  onUpdateRef.current = onUpdate;
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
 
   useEffect(() => {
     if (!orgId) return;

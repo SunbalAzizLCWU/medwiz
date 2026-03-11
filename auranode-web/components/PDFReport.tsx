@@ -268,7 +268,7 @@ function ReportDocument({
         {/* DOCTOR NOTES */}
         {report.doctor_notes && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Physician's Notes</Text>
+            <Text style={styles.sectionTitle}>{"Physician's Notes"}</Text>
             <View style={styles.notesBox}>
               <Text style={styles.notesText}>{report.doctor_notes}</Text>
             </View>

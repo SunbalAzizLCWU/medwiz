@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import type { CookieOptions } from "@supabase/ssr";
 
 const PROTECTED_ROUTES = ["/dashboard", "/doctor", "/admin"];
 const AUTH_ROUTES = ["/login", "/signup"];
@@ -15,19 +16,18 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
+        get(key: string) {
+          return request.cookies.get(key)?.value;
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+        set(key: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name: key, value, ...options });
+          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse.cookies.set({ name: key, value, ...options });
+        },
+        remove(key: string, options: CookieOptions) {
+          request.cookies.set({ name: key, value: "", ...options });
+          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse.cookies.set({ name: key, value: "", ...options });
         },
       },
     }
@@ -39,10 +39,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route)
+  const isProtected = PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const isAuthRoute = AUTH_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL("/login", request.url));

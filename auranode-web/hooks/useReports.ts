@@ -44,7 +44,7 @@ export function useReports(status?: ReportStatus) {
   const url = status ? `/api/reports?status=${status}` : "/api/reports";
   const { data, error, isLoading, mutate } = useSWR<Report[]>(
     [url, status],
-    ([u]) => fetcher(u as string)
+    ([u]) => fetcher(u)
   );
 
   return {

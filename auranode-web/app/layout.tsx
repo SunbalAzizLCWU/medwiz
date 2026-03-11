@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AuraNode | Tele-Diagnostic Platform",
@@ -18,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         {children}
         <Toaster position="top-right" />
       </body>
