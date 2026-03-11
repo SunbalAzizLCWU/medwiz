@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ONNX model cache
+*.onnx
+
+# IDEs
+.idea/
+.vscode/
+*.swp
