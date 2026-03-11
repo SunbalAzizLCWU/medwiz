@@ -2,16 +2,17 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 
 interface Props {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }
 
 export default async function PublicReportPage({ params }: Props) {
+  const { token } = await params;
   const supabase = await createServerSupabaseClient();
 
   const { data: report } = await supabase
     .from("reports")
     .select("*, patient:patients(*)")
-    .eq("signed_url_token", params.token)
+    .eq("signed_url_token", token)
     .single();
 
   if (!report) notFound();
