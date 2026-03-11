@@ -43,6 +43,12 @@ export default async function AdminLayout({
           >
             Overview
           </Link>
+          <Link
+            href="/admin/audit"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-700 font-medium transition-colors"
+          >
+            Audit Logs
+          </Link>
         </nav>
         <div className="p-4 border-t border-surface-border">
           <p className="text-sm font-medium text-slate-800 truncate">

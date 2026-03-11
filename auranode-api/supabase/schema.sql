@@ -176,6 +176,12 @@ CREATE POLICY "audit_insert_only" ON audit_logs
     FOR INSERT
     WITH CHECK (true);
 
+CREATE POLICY "audit_superadmin_select" ON audit_logs
+    FOR SELECT
+    USING (
+        (SELECT role FROM users WHERE id = auth.uid()) = 'superadmin'
+    );
+
 -- ============================================================
 -- 11. Indexes
 -- ============================================================
