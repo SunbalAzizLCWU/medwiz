@@ -38,7 +38,7 @@ def _notify_doctors(org_id: str, report_id: str, message: str) -> None:
     """Notify all active doctors assigned to an org."""
     doctors = (
         supabase.table("clinic_doctor_assignments")
-        .select("doctor_id")
+        .select("user_id")
         .eq("org_id", org_id)
         .eq("is_active", True)
         .execute()
