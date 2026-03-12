@@ -22,7 +22,7 @@ export function useAuth() {
       if (error || !data) {
         setUser(null);
       } else {
-        setUser(data as User);
+        setUser(data as unknown as User);
       }
     },
     [supabase]
