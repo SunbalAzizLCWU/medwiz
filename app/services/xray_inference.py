@@ -1,12 +1,10 @@
 import io
 import logging
 import os
-
 import httpx
 import numpy as np
-import onnxruntime
+import onnxruntime as ort  # Using 'ort' alias is standard
 from PIL import Image
-
 from app.core.config import settings
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -14,11 +12,9 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 INPUT_SIZE = 224
 MODEL_VERSION = "v1.0"
 
-
 def softmax(x: np.ndarray) -> np.ndarray:
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum()
-
 
 class XRayInferenceService:
     def __init__(self):
@@ -27,9 +23,10 @@ class XRayInferenceService:
         self.logger = logging.getLogger("auranode.xray")
 
     async def ensure_model_loaded(self):
-        """Download ONNX model from Supabase Storage if not cached."""
+        """Download ONNX model and initialize session with LOW MEMORY settings."""
         if self.session is not None:
             return
+        
         if not os.path.exists(self.model_path):
             self.logger.info("Downloading ONNX model from storage...")
             async with httpx.AsyncClient(timeout=120.0) as client:
@@ -38,11 +35,27 @@ class XRayInferenceService:
                 with open(self.model_path, "wb") as f:
                     f.write(response.content)
             self.logger.info("Model downloaded successfully.")
-        self.session = onnxruntime.InferenceSession(
-            self.model_path,
-            providers=["CPUExecutionProvider"],
-        )
-        self.logger.info("ONNX session initialized.")
+
+        # --- LOW MEMORY OPTIMIZATIONS START ---
+        options = ort.SessionOptions()
+        # Disable all heavy optimizations that use extra RAM
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        # Force sequential execution to avoid thread-based memory spikes
+        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        
+        try:
+            self.session = ort.InferenceSession(
+                self.model_path,
+                sess_options=options,
+                providers=["CPUExecutionProvider"],
+            )
+            self.logger.info("Memory-optimized ONNX session initialized.")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize ONNX session: {e}")
+            raise e
+        # --- LOW MEMORY OPTIMIZATIONS END ---
 
     def preprocess_image(self, image_bytes: bytes) -> np.ndarray:
         """Convert raw image bytes to normalized float32 tensor."""
@@ -53,20 +66,24 @@ class XRayInferenceService:
             img_array[:, :, c] = (
                 img_array[:, :, c] - IMAGENET_MEAN[c]
             ) / IMAGENET_STD[c]
-        img_array = np.transpose(img_array, (2, 0, 1))  # HWC -> CHW
-        img_array = np.expand_dims(img_array, axis=0)   # add batch dim
+        img_array = np.transpose(img_array, (2, 0, 1))
+        img_array = np.expand_dims(img_array, axis=0)
         return img_array.astype(np.float32)
 
     async def predict(self, image_bytes: bytes) -> dict:
         """Run inference. Returns prediction dict."""
         await self.ensure_model_loaded()
+        
+        # Memory-safe inference
         input_tensor = self.preprocess_image(image_bytes)
         input_name = self.session.get_inputs()[0].name
+        
         outputs = self.session.run(None, {input_name: input_tensor})
-        # outputs[0] shape: (1, 2) — [normal_prob, abnormal_prob]
+        
         probabilities = softmax(outputs[0][0])
         abnormal_prob = float(probabilities[1])
         prediction = "Abnormal" if abnormal_prob >= 0.5 else "Normal"
+        
         return {
             "prediction": prediction,
             "confidence": round(
@@ -75,6 +92,5 @@ class XRayInferenceService:
             ),
             "model_version": MODEL_VERSION,
         }
-
 
 xray_service = XRayInferenceService()
