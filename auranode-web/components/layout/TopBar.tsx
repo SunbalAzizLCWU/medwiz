@@ -26,7 +26,7 @@ export function TopBar({ title }: Props) {
       .eq("is_read", false)
       .order("created_at", { ascending: false })
       .limit(20);
-    if (data) setNotifications(data as Notification[]);
+    if (data) setNotifications(data as unknown as Notification[]);
   }, [user, supabase]);
 
   useEffect(() => {
