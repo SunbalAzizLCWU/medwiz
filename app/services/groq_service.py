@@ -10,7 +10,7 @@ from app.core.config import settings
 class GroqService:
     def __init__(self):
         self.client = groq_lib.Groq(api_key=settings.GROQ_API_KEY)
-        self.model = "llama-3.1-70b-versatile"
+        self.model = "llama-3.3-70b-versatile"
         self.logger = logging.getLogger("auranode.groq")
 
     async def parse_lab_report(self, ocr_text: str) -> dict:
