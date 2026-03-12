@@ -1,6 +1,5 @@
 import asyncio
 import logging
-
 import httpx
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -36,26 +35,37 @@ def enqueue_report_job(
 
 def _notify_doctors(org_id: str, report_id: str, message: str) -> None:
     """Notify all active doctors assigned to an org."""
-    doctors = (
-        supabase.table("clinic_doctor_assignments")
-        .select("user_id")
-        .eq("org_id", org_id)
-        .eq("is_active", True)
-        .execute()
-    )
-    for doc in doctors.data or []:
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(
-                notification_service.send(
-                    user_id=doc["doctor_id"],
-                    report_id=report_id,
-                    type="report_ready",
-                    message=message,
+    try:
+        # Fixed: Updated to use doctor_user_id to match your Supabase schema
+        doctors = (
+            supabase.table("clinic_doctor_assignments")
+            .select("doctor_user_id") 
+            .eq("clinic_org_id", org_id) # Using clinic_org_id as per your schema
+            .eq("is_active", True)
+            .execute()
+        )
+        
+        for doc in doctors.data or []:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            try:
+                loop.run_until_complete(
+                    notification_service.send(
+                        user_id=doc["doctor_user_id"],
+                        report_id=report_id,
+                        type="report_ready",
+                        message=message,
+                    )
                 )
-            )
-        finally:
-            loop.close()
+            except Exception as e:
+                logger.error(f"Failed to send individual notification: {e}")
+    except Exception as e:
+        # Job continues even if notification logic fails
+        logger.error(f"Doctor notification system error: {e}")
 
 
 def process_xray_job(report_id: str, file_url: str, org_id: str) -> None:
@@ -63,7 +73,7 @@ def process_xray_job(report_id: str, file_url: str, org_id: str) -> None:
     logger.info(f"Starting X-ray job for report {report_id}")
     try:
         # Update status to processing
-        supabase.table("reports").update({"status": "processing"}).eq(
+        supabase.table("reports").update({"status": "processing_ai"}).eq(
             "id", report_id
         ).execute()
 
@@ -72,28 +82,37 @@ def process_xray_job(report_id: str, file_url: str, org_id: str) -> None:
         response.raise_for_status()
         image_bytes = response.content
 
-        # Run ONNX inference (sync wrapper for async predict)
-        loop = asyncio.new_event_loop()
+        # Run ONNX inference
         try:
-            finding = loop.run_until_complete(xray_service.predict(image_bytes))
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        finding = loop.run_until_complete(xray_service.predict(image_bytes))
+        
+        # Call Groq summary
+        try:
             summary = loop.run_until_complete(
                 groq_service.generate_xray_summary(finding)
             )
-        finally:
-            loop.close()
+        except Exception as groq_err:
+            logger.error(f"Groq summary failed: {groq_err}")
+            summary = "Summary generation unavailable."
 
         ai_findings = {**finding, "summary": summary, "type": "xray"}
 
-        # Update report with findings
+        # Update report with findings and flip status to awaiting_doctor
         supabase.table("reports").update(
             {"ai_findings": ai_findings, "status": "awaiting_doctor"}
         ).eq("id", report_id).execute()
 
+        # Try notifications, but don't fail the job if this part crashes
         _notify_doctors(
             org_id, report_id, "New X-ray report is ready for your review."
         )
 
-        logger.info(f"X-ray job completed for report {report_id}")
+        logger.info(f"X-ray job COMPLETED for report {report_id}")
 
     except Exception as e:
         logger.error(f"X-ray job FAILED for {report_id}: {e}")
@@ -110,7 +129,7 @@ def process_lab_job(report_id: str, file_url: str, org_id: str) -> None:
     logger.info(f"Starting lab job for report {report_id}")
     try:
         # Update status to processing
-        supabase.table("reports").update({"status": "processing"}).eq(
+        supabase.table("reports").update({"status": "processing_ai"}).eq(
             "id", report_id
         ).execute()
 
@@ -123,13 +142,15 @@ def process_lab_job(report_id: str, file_url: str, org_id: str) -> None:
         ocr_text = ocr_service.extract_text(image_bytes)
 
         # Call Groq to parse lab markers
-        loop = asyncio.new_event_loop()
         try:
-            ai_findings = loop.run_until_complete(
-                groq_service.parse_lab_report(ocr_text)
-            )
-        finally:
-            loop.close()
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        ai_findings = loop.run_until_complete(
+            groq_service.parse_lab_report(ocr_text)
+        )
 
         # Update report with findings
         supabase.table("reports").update(
@@ -140,7 +161,7 @@ def process_lab_job(report_id: str, file_url: str, org_id: str) -> None:
             org_id, report_id, "New lab report is ready for review."
         )
 
-        logger.info(f"Lab job completed for report {report_id}")
+        logger.info(f"Lab job COMPLETED for report {report_id}")
 
     except Exception as e:
         logger.error(f"Lab job FAILED for {report_id}: {e}")
