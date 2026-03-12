@@ -36,11 +36,11 @@ def enqueue_report_job(
 def _notify_doctors(org_id: str, report_id: str, message: str) -> None:
     """Notify all active doctors assigned to an org."""
     try:
-        # Fixed: Updated to use doctor_user_id to match your Supabase schema
+        # Matches confirmed columns: doctor_user_id and clinic_org_id
         doctors = (
             supabase.table("clinic_doctor_assignments")
-            .select("doctor_user_id") 
-            .eq("clinic_org_id", org_id) # Using clinic_org_id as per your schema
+            .select("doctor_user_id")
+            .eq("clinic_org_id", org_id)
             .eq("is_active", True)
             .execute()
         )
@@ -64,7 +64,6 @@ def _notify_doctors(org_id: str, report_id: str, message: str) -> None:
             except Exception as e:
                 logger.error(f"Failed to send individual notification: {e}")
     except Exception as e:
-        # Job continues even if notification logic fails
         logger.error(f"Doctor notification system error: {e}")
 
 
@@ -72,8 +71,8 @@ def process_xray_job(report_id: str, file_url: str, org_id: str) -> None:
     """Download image, run ONNX inference, update Supabase."""
     logger.info(f"Starting X-ray job for report {report_id}")
     try:
-        # Update status to processing
-        supabase.table("reports").update({"status": "processing_ai"}).eq(
+        # FIXED: Changed status to 'processing' to satisfy DB check constraint
+        supabase.table("reports").update({"status": "processing"}).eq(
             "id", report_id
         ).execute()
 
@@ -102,12 +101,12 @@ def process_xray_job(report_id: str, file_url: str, org_id: str) -> None:
 
         ai_findings = {**finding, "summary": summary, "type": "xray"}
 
-        # Update report with findings and flip status to awaiting_doctor
+        # Update report with findings
         supabase.table("reports").update(
             {"ai_findings": ai_findings, "status": "awaiting_doctor"}
         ).eq("id", report_id).execute()
 
-        # Try notifications, but don't fail the job if this part crashes
+        # Try notifications (non-blocking)
         _notify_doctors(
             org_id, report_id, "New X-ray report is ready for your review."
         )
@@ -128,8 +127,8 @@ def process_lab_job(report_id: str, file_url: str, org_id: str) -> None:
     """Download image, run OCR, call Groq, update Supabase."""
     logger.info(f"Starting lab job for report {report_id}")
     try:
-        # Update status to processing
-        supabase.table("reports").update({"status": "processing_ai"}).eq(
+        # FIXED: Changed status to 'processing' to satisfy DB check constraint
+        supabase.table("reports").update({"status": "processing"}).eq(
             "id", report_id
         ).execute()
 
