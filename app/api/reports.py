@@ -61,7 +61,8 @@ async def create_report(
             .insert(
                 {
                     "phone_hash": phone_hash,
-                    "name": body.patient_name,
+                    "patient_name": body.patient_name,  # FIXED
+                    "phone_last4": body.patient_phone[-4:],  # FIXED (Added required column)
                     "org_id": org_id,
                 }
             )
@@ -78,7 +79,7 @@ async def create_report(
         "file_url": body.file_url,
         "status": "uploading",
         "signed_url_token": signed_url_token,
-        "version": 1,
+        # FIXED: Removed 'version' as it does not exist in schema.sql
     }
 
     result = supabase.table("reports").insert(report_data).execute()
@@ -87,11 +88,14 @@ async def create_report(
 
     enqueue_report_job(report_id, body.upload_type, body.file_url, org_id)
 
-    supabase.table("audit_log").insert(
+    # FIXED: Table name is 'audit_logs' and column names mapped to schema
+    supabase.table("audit_logs").insert(
         {
-            "user_id": current_user["id"],
+            "actor_id": current_user["id"],
             "action": "report_created",
-            "metadata": {"report_id": report_id, "upload_type": body.upload_type},
+            "entity_type": "report",
+            "entity_id": report_id,
+            "meta": {"upload_type": body.upload_type},
         }
     ).execute()
 
@@ -116,7 +120,6 @@ async def list_reports(
 
     if current_user.get("role") == "doctor":
         # Doctors see their assigned reports or unassigned ones
-        # Use OR filter: doctor_id = user.id OR doctor_id is NULL
         query = query.or_(
             f"doctor_id.eq.{current_user['id']},doctor_id.is.null"
         )
@@ -216,19 +219,21 @@ async def approve_report(
                 "doctor_id": current_user["id"],
                 "status": "reviewed",
                 "reviewed_at": now,
-                "version": (report.get("version") or 1) + 1,
+                # FIXED: Removed version increment as it's not in schema
             }
         )
         .eq("id", report_id)
         .execute()
     )
 
-    supabase.table("audit_log").insert(
+    # FIXED: Table name is 'audit_logs' and column names mapped to schema
+    supabase.table("audit_logs").insert(
         {
-            "user_id": current_user["id"],
+            "actor_id": current_user["id"],
             "action": "report_approved",
-            "metadata": {
-                "report_id": report_id,
+            "entity_type": "report",
+            "entity_id": report_id,
+            "meta": {
                 "doctor_id": current_user["id"],
                 "timestamp": now,
             },
