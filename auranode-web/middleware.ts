@@ -44,9 +44,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Use getSession() here: validates the JWT from the cookie locally without a
+  // network round-trip to the Supabase Auth server. This is the primary fix for
+  // the 5-6 second per-navigation latency. getUser() was previously making a
+  // full server-side DB call on every single request in middleware.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user ?? null;
 
   const pathname = request.nextUrl.pathname;
 
