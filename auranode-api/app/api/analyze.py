@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.db.supabase_client import supabase
-from app.core.dependencies import require_role
+
+# Change these to relative imports by adding a '.' 
+# This tells Python to look inside the CURRENT package
+from ..db.supabase_client import supabase
+from ..core.dependencies import require_role
 
 router = APIRouter(prefix="", tags=["analyze"])
 
@@ -9,8 +12,8 @@ async def retry_report(
     report_id: str,
     current_user: dict = Depends(require_role("clinic_admin")),
 ):
-    # LOCAL IMPORT to break any potential circular dependency loops
-    from app.workers.job_queue import enqueue_report_job
+    # Local import adjusted for the same reason
+    from ..workers.job_queue import enqueue_report_job
     
     result = supabase.table("reports").select("*").eq("id", report_id).execute()
     
