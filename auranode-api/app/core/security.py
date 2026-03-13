@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -7,13 +9,27 @@ from app.db.supabase_client import get_supabase
 
 _ALGORITHM = "HS256"
 
+logger = logging.getLogger("auranode")
+
 
 def decode_supabase_jwt(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[_ALGORITHM])
-        return payload
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[_ALGORITHM],
+            options={"verify_aud": False},
+        )
     except JWTError as exc:
-        raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
+        logger.error("CRITICAL JWT ERROR: %s", str(exc))
+        raise HTTPException(
+            status_code=401, detail=f"Token Error: {str(exc)}"
+        ) from exc
+
+    aud = payload.get("aud")
+    if aud != "authenticated":
+        raise HTTPException(status_code=401, detail="Token has invalid audience")
+    return payload
 
 
 def get_current_user(
