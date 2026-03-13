@@ -38,4 +38,7 @@ jobs:
         run: ruff check app/
 
       - name: Run tests
+        env:
+          # This tells Python to treat the auranode-api folder as the root for imports
+          PYTHONPATH: .
         run: pytest tests/ -v --tb=short
