@@ -6,7 +6,6 @@ from app.workers.job_queue import enqueue_report_job
 
 router = APIRouter(prefix="", tags=["analyze"])
 
-
 @router.post("/retry/{report_id}")
 async def retry_report(
     report_id: str,
