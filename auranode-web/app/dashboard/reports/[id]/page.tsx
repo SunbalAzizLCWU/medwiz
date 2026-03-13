@@ -147,22 +147,46 @@ export default function ReportDetailPage() {
             </h3>
             
             {report.status === "failed" ? (
-              <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-100">
+              <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 text-sm">
                 The AI inference engine failed to process this document. It may be blurry, unreadable, or corrupted.
               </div>
-            ) : report.ai_analysis ? (
-              <div className="prose prose-slate max-w-none text-sm">
-                {/* Assuming ai_analysis is a text block. If it's JSON, we'd stringify it here */}
-                <pre className="whitespace-pre-wrap font-sans text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  {typeof report.ai_analysis === 'string' ? report.ai_analysis : JSON.stringify(report.ai_analysis, null, 2)}
-                </pre>
+            ) : report.ai_findings ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">AI Prediction</p>
+                    <p className={`text-xl font-black ${report.ai_findings.prediction === 'Abnormal' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {report.ai_findings.prediction || "Unknown"}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Confidence Score</p>
+                    <p className="text-xl font-black text-slate-800">
+                      {report.ai_findings.confidence ? `${(report.ai_findings.confidence * 100).toFixed(1)}%` : "N/A"}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="p-5 bg-blue-50/50 rounded-lg border border-blue-100">
+                   <p className="text-xs text-blue-700 font-bold uppercase tracking-wider mb-2">Clinical Summary</p>
+                   <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                     {report.ai_findings.summary || "No summary provided."}
+                   </p>
+                </div>
+                
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
+                    Model: {report.ai_findings.model_version || "Unknown"}
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm font-medium italic">
+              <div className="flex items-center justify-center h-40 text-slate-400 text-sm font-medium italic bg-slate-50 rounded-lg border border-slate-100 border-dashed">
                 Analysis data is currently unavailable or pending.
               </div>
             )}
 
+            
             <div className="mt-8 pt-6 border-t border-surface-border flex justify-end gap-3">
                <button className="px-5 py-2.5 bg-brand-600 text-white font-bold text-sm rounded-lg hover:bg-brand-700 shadow-sm transition-colors">
                  Submit Clinical Review
