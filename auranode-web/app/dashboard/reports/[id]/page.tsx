@@ -164,7 +164,39 @@ export default function ReportDetailPage() {
                 report.ai_findings.type === "lab" ? (
                   // LAB REPORT UI
                   <div className="space-y-4">
-                    <p className="text-sm text-slate-500 mb-4">The AI extracted the following biomarkers from the document:</p>
+                    
+                    {/* NEW: AI Clinical Assessment Box */}
+                    {(report.ai_findings.prediction || report.ai_findings.summary) && (
+                      <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl mb-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-3 border-b border-blue-100 pb-2">
+                           <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-2">
+                             <Activity className="w-4 h-4" /> AI Clinical Assessment
+                           </h4>
+                           {report.ai_findings.confidence && (
+                             <span className="text-[10px] font-bold text-blue-800 bg-blue-200/50 px-2 py-1 rounded uppercase tracking-wider">
+                               {typeof report.ai_findings.confidence === 'number' 
+                                 ? `${(report.ai_findings.confidence * 100).toFixed(0)}% Confidence` 
+                                 : report.ai_findings.confidence}
+                             </span>
+                           )}
+                        </div>
+                        <div className="space-y-2">
+                          {report.ai_findings.prediction && (
+                            <p className="text-sm text-blue-900">
+                              <span className="font-bold uppercase text-[11px] tracking-wider text-blue-700 mr-2">Probable Diagnosis:</span> 
+                              <span className="font-semibold text-lg">{report.ai_findings.prediction}</span>
+                            </p>
+                          )}
+                          {report.ai_findings.summary && (
+                            <p className="text-sm text-blue-800 leading-relaxed font-medium">
+                              {report.ai_findings.summary}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-sm text-slate-500 mb-4 font-medium">Extracted Biomarkers:</p>
                     <div className="grid grid-cols-2 gap-3">
                       {report.ai_findings.findings?.map((item: any, idx: number) => {
                         const isAbnormal = item.status !== "NORMAL";
