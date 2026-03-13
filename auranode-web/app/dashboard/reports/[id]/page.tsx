@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
-import { ArrowLeft, FileText, Activity, User, AlertCircle, Calendar } from "lucide-react";
+import { createClient } from "@/lib/supabase/client"; // adjust this import to match your actual supabase client path!
+import { ArrowLeft, FileText, Activity, User, AlertCircle, Calendar, CheckCircle } from "lucide-react";
 
-// Standardizing the badge so we don't rely on external imports
 function DetailStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     uploading: "bg-slate-100 text-slate-600 border-slate-200",
@@ -33,20 +32,19 @@ export default function ReportDetailPage() {
   const router = useRouter();
   const [report, setReport] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchReport() {
       if (!params.id) return;
       const supabase = createClient();
       
-      // Removed the 'patient(*)' join to prevent schema errors
       const { data, error } = await supabase
         .from("reports")
         .select("*")
         .eq("id", params.id)
         .single();
 
-      // Log the error to the console so we can see it if it fails again
       if (error) {
         console.error("Supabase Error:", error);
       }
@@ -58,7 +56,27 @@ export default function ReportDetailPage() {
     }
     fetchReport();
   }, [params.id]);
-  
+
+  // THE MAGIC SUBMIT BUTTON FUNCTION
+  const handleApprove = async () => {
+    setIsSubmitting(true);
+    const supabase = createClient();
+    
+    const { error } = await supabase
+      .from("reports")
+      .update({ status: "reviewed" })
+      .eq("id", report.id);
+
+    setIsSubmitting(false);
+    
+    if (!error) {
+      // Send them back to the dashboard when finished
+      router.push("/dashboard");
+    } else {
+      alert("Failed to update status. Check console.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[60vh]">
@@ -75,23 +93,21 @@ export default function ReportDetailPage() {
       <div className="p-8 flex flex-col items-center justify-center min-h-[60vh]">
         <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
         <h2 className="text-xl font-bold text-slate-800">Report Not Found</h2>
-        <p className="text-slate-500 mt-2 mb-6">This report may have been deleted or is unavailable.</p>
-        <button onClick={() => router.back()} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium">
+        <button onClick={() => router.back()} className="mt-6 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg">
           Go Back
         </button>
       </div>
     );
   }
 
+  const isPDF = report.file_url?.toLowerCase().includes('.pdf');
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-surface-border shadow-sm">
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => router.push('/dashboard')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
-          >
+          <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -103,95 +119,114 @@ export default function ReportDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Patient Info & Image Viewer */}
+        {/* Left Column: File & Patient info */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-5 rounded-xl border border-surface-border shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4 border-b pb-3">
-              <User className="w-4 h-4 text-brand-600" /> Patient Profile
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-3">
+              Patient Profile
             </h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-slate-400 font-medium">Full Name</p>
-                <p className="font-semibold text-slate-900">{report.patient?.name || report.patient_name || "Unknown Patient"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-medium">Upload Date</p>
-                <p className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  {new Date(report.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            </div>
+            <p className="font-semibold text-slate-900">{report.patient_name || "Unknown Patient"}</p>
+            <p className="text-sm text-slate-500 mt-1">{new Date(report.created_at).toLocaleDateString()}</p>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-surface-border shadow-sm">
-             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4 border-b pb-3">
-              <FileText className="w-4 h-4 text-brand-600" /> Source File
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b pb-3">
+              Source File
             </h3>
-            <div className="aspect-square bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden border border-slate-200 relative group">
+            <div className="bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden border border-slate-200 relative">
               {report.file_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={report.file_url} alt="Medical Scan" className="object-cover w-full h-full" />
+                isPDF ? (
+                  <iframe src={report.file_url} className="w-full h-[400px]" title="PDF Report" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={report.file_url} alt="Scan" className="object-cover w-full h-full" />
+                )
               ) : (
-                <p className="text-slate-400 text-sm font-medium">No image provided</p>
+                <p className="text-slate-400 py-20 text-sm font-medium">No file provided</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Column: AI Analysis Results */}
+        {/* Right Column: Dynamic AI Analysis */}
         <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-xl border border-surface-border shadow-sm h-full">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-6 border-b pb-3">
               <Activity className="w-4 h-4 text-brand-600" /> Diagnostic AI Output
             </h3>
             
-            {report.status === "failed" ? (
-              <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 text-sm">
-                The AI inference engine failed to process this document. It may be blurry, unreadable, or corrupted.
-              </div>
-            ) : report.ai_findings ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">AI Prediction</p>
-                    <p className={`text-xl font-black ${report.ai_findings.prediction === 'Abnormal' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {report.ai_findings.prediction || "Unknown"}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Confidence Score</p>
-                    <p className="text-xl font-black text-slate-800">
-                      {report.ai_findings.confidence ? `${(report.ai_findings.confidence * 100).toFixed(1)}%` : "N/A"}
-                    </p>
-                  </div>
-                </div>
+            <div className="flex-1">
+              {report.status === "failed" ? (
+                <div className="p-4 bg-red-50 text-red-700 rounded-lg">AI processing failed.</div>
+              ) : report.ai_findings ? (
                 
-                <div className="p-5 bg-blue-50/50 rounded-lg border border-blue-100">
-                   <p className="text-xs text-blue-700 font-bold uppercase tracking-wider mb-2">Clinical Summary</p>
-                   <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                     {report.ai_findings.summary || "No summary provided."}
-                   </p>
-                </div>
-                
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
-                    Model: {report.ai_findings.model_version || "Unknown"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm font-medium italic bg-slate-50 rounded-lg border border-slate-100 border-dashed">
-                Analysis data is currently unavailable or pending.
+                // --- DYNAMIC RENDERING ---
+                report.ai_findings.type === "lab" ? (
+                  // LAB REPORT UI
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-500 mb-4">The AI extracted the following biomarkers from the document:</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {report.ai_findings.findings?.map((item: any, idx: number) => {
+                        const isAbnormal = item.status !== "NORMAL";
+                        return (
+                          <div key={idx} className={`p-3 rounded-lg border ${isAbnormal ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-100'}`}>
+                            <p className="text-[11px] font-bold text-slate-500 uppercase">{item.marker}</p>
+                            <div className="flex justify-between items-end mt-1">
+                              <p className={`text-xl font-black ${isAbnormal ? 'text-rose-700' : 'text-emerald-700'}`}>
+                                {item.value} <span className="text-xs font-medium text-slate-500 ml-1">{item.unit}</span>
+                              </p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${isAbnormal ? 'bg-rose-200 text-rose-800' : 'bg-emerald-200 text-emerald-800'}`}>
+                                {item.status}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  // X-RAY REPORT UI
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">AI Prediction</p>
+                        <p className={`text-xl font-black ${report.ai_findings.prediction === 'Abnormal' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {report.ai_findings.prediction || "Unknown"}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Confidence</p>
+                        <p className="text-xl font-black text-slate-800">
+                          {report.ai_findings.confidence ? `${(report.ai_findings.confidence * 100).toFixed(1)}%` : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-5 bg-blue-50/50 rounded-lg border border-blue-100 mt-4">
+                       <p className="text-xs text-blue-700 font-bold uppercase tracking-wider mb-2">Clinical Summary</p>
+                       <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                         {report.ai_findings.summary || "No summary provided."}
+                       </p>
+                    </div>
+                  </div>
+                )
+
+              ) : (
+                <div className="flex items-center justify-center h-40 text-slate-400 italic">Analysis pending.</div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            {report.status === "awaiting_doctor" && (
+              <div className="mt-8 pt-6 border-t border-slate-200 flex justify-end">
+                 <button 
+                   onClick={handleApprove}
+                   disabled={isSubmitting}
+                   className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white font-bold text-sm rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50"
+                 >
+                   {isSubmitting ? "Approving..." : <><CheckCircle className="w-4 h-4" /> Submit Clinical Review</>}
+                 </button>
               </div>
             )}
-
-            
-            <div className="mt-8 pt-6 border-t border-surface-border flex justify-end gap-3">
-               <button className="px-5 py-2.5 bg-brand-600 text-white font-bold text-sm rounded-lg hover:bg-brand-700 shadow-sm transition-colors">
-                 Submit Clinical Review
-               </button>
-            </div>
           </div>
         </div>
       </div>
