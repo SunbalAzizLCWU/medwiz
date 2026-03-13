@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-# Change these to relative imports by adding a '.' 
-# This tells Python to look inside the CURRENT package
-from ..db.supabase_client import supabase
-from ..core.dependencies import require_role
+# Use absolute imports (NO DOTS)
+from app.db.supabase_client import supabase
+from app.core.dependencies import require_role
 
 router = APIRouter(prefix="", tags=["analyze"])
 
@@ -12,8 +11,8 @@ async def retry_report(
     report_id: str,
     current_user: dict = Depends(require_role("clinic_admin")),
 ):
-    # Local import adjusted for the same reason
-    from ..workers.job_queue import enqueue_report_job
+    # Local absolute import
+    from app.workers.job_queue import enqueue_report_job
     
     result = supabase.table("reports").select("*").eq("id", report_id).execute()
     
@@ -31,7 +30,6 @@ async def retry_report(
             detail="Report is not in 'processing_failed' state.",
         )
 
-    # Update status to trigger fresh processing
     supabase.table("reports").update({"status": "uploading"}).eq("id", report_id).execute()
 
     enqueue_report_job(
