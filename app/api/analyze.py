@@ -9,7 +9,8 @@ async def retry_report(
     report_id: str,
     current_user: dict = Depends(require_role("clinic_admin")),
 ):
-    # LOCAL IMPORT to break any potential circular dependency loops
+    """Re-enqueue a failed report job."""
+    # Note: Using absolute import here as this is at the root
     from app.workers.job_queue import enqueue_report_job
     
     result = supabase.table("reports").select("*").eq("id", report_id).execute()
@@ -28,7 +29,6 @@ async def retry_report(
             detail="Report is not in 'processing_failed' state.",
         )
 
-    # Update status to trigger fresh processing
     supabase.table("reports").update({"status": "uploading"}).eq("id", report_id).execute()
 
     enqueue_report_job(
