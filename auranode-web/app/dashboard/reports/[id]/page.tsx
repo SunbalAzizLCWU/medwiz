@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client"; // adjust this import to match your actual supabase client path!
+import { createClient } from "@/lib/supabase"; // adjust this import to match your actual supabase client path!
 import { ArrowLeft, FileText, Activity, User, AlertCircle, Calendar, CheckCircle } from "lucide-react";
 
 function DetailStatusBadge({ status }: { status: string }) {
