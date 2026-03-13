@@ -39,11 +39,17 @@ export default function ReportDetailPage() {
       if (!params.id) return;
       const supabase = createClient();
       
+      // Removed the 'patient(*)' join to prevent schema errors
       const { data, error } = await supabase
         .from("reports")
-        .select("*, patient(*)")
+        .select("*")
         .eq("id", params.id)
         .single();
+
+      // Log the error to the console so we can see it if it fails again
+      if (error) {
+        console.error("Supabase Error:", error);
+      }
 
       if (!error && data) {
         setReport(data);
@@ -52,7 +58,7 @@ export default function ReportDetailPage() {
     }
     fetchReport();
   }, [params.id]);
-
+  
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[60vh]">
