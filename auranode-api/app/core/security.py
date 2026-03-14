@@ -14,6 +14,10 @@ logger = logging.getLogger("auranode")
 
 def decode_supabase_jwt(token: str) -> dict:
     try:
+        # PEEK AT THE HEADER: Log the unverified header to see what 'alg' the client is actually sending
+        unverified_header = jwt.get_unverified_header(token)
+        logger.info("Incoming Token Header: %s", unverified_header)
+
         payload = jwt.decode(
             token,
             settings.JWT_SECRET,
@@ -21,9 +25,11 @@ def decode_supabase_jwt(token: str) -> dict:
             options={"verify_aud": False},
         )
     except JWTError as exc:
+        # LOGGING: Keep the detailed error for debugging
         logger.error("CRITICAL JWT ERROR: %s", str(exc))
+        # SECURITY: Return a generic message to the client to avoid leaking token details
         raise HTTPException(
-            status_code=401, detail=f"Token Error: {str(exc)}"
+            status_code=401, detail="Invalid or expired token"
         ) from exc
 
     aud = payload.get("aud")
